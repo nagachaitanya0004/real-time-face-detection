@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+mediapipe
+Pillow
+asyncpg
+redis
+python-multipart
+websockets
+numpy
