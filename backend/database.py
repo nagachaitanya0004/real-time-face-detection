@@ -1,41 +1,25 @@
 import asyncpg
+import os
 from typing import Optional
 
 pool: Optional[asyncpg.Pool] = None
 
 async def init_db(dsn: str) -> None:
     """
-    Initialize the database connection pool and create the roi_records table if it doesn't exist.
-    
-    Args:
-        dsn (str): The PostgreSQL connection string.
+    Initialize the database connection pool and run migrations automatically.
     """
     global pool
     pool = await asyncpg.create_pool(dsn)
     async with pool.acquire() as conn:
-        # Create the ROI records table
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS roi_records (
-                frame_id UUID PRIMARY KEY,
-                x FLOAT,
-                y FLOAT,
-                width FLOAT,
-                height FLOAT,
-                confidence FLOAT,
-                timestamp TIMESTAMP WITH TIME ZONE,
-                face_detected BOOLEAN NOT NULL
-            );
-        """)
+        migration_file = os.path.join(os.path.dirname(__file__), "init.sql")
+        if os.path.exists(migration_file):
+            with open(migration_file, "r") as f:
+                sql = f.read()
+            await conn.execute(sql)
 
 async def get_db_pool() -> asyncpg.Pool:
     """
     Retrieve the initialized database connection pool.
-    
-    Returns:
-        asyncpg.Pool: The active connection pool.
-        
-    Raises:
-        RuntimeError: If the pool has not been initialized.
     """
     if pool is None:
         raise RuntimeError("Database pool is not initialized.")
