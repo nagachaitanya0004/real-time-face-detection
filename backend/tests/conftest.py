@@ -14,9 +14,10 @@ def anyio_backend():
 @pytest.fixture
 async def async_client():
     """
-    ISSUE 1: Async httpx client for testing FastAPI endpoints.
+    ISSUE 1: Async httpx client for testing FastAPI endpoints using ASGITransport.
     """
-    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 @pytest.fixture(autouse=True)
