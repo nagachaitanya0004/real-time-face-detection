@@ -78,3 +78,21 @@ CREATE INDEX IF NOT EXISTS idx_roi_face_detected ON roi_records(face_detected);
 -- SELECT session_id, frame_index, processed_at 
 -- FROM roi_records 
 -- WHERE face_detected = FALSE;
+
+-- ==============================================================================
+-- Least Privilege Security Configuration
+-- ==============================================================================
+
+-- Create a dedicated application user if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'vision_app_user') THEN
+        CREATE ROLE vision_app_user WITH LOGIN PASSWORD 'vision_app_password';
+    END IF;
+END $$;
+
+-- Grant limited permissions to the application user
+GRANT CONNECT ON DATABASE facedetection TO vision_app_user;
+GRANT USAGE ON SCHEMA public TO vision_app_user;
+GRANT SELECT, INSERT, UPDATE ON TABLE video_sessions TO vision_app_user;
+GRANT SELECT, INSERT ON TABLE roi_records TO vision_app_user;

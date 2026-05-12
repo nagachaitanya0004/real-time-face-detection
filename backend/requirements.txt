@@ -7,3 +7,4 @@ redis
 python-multipart
 websockets
 numpy
+python-json-logger
