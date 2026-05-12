@@ -1,6 +1,4 @@
-# Purpose: Automated testing workflow for GitHub Actions.
-
-name: Face Detection Backend CI
+name: Backend Tests
 
 on:
   push:
@@ -16,16 +14,21 @@ jobs:
     - uses: actions/checkout@v3
     
     - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.11"
         
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-asyncio httpx Pillow numpy mediapipe asyncpg redis fastapi uvicorn python-multipart
+        pip install -r backend/requirements.txt
+        pip install pytest pytest-asyncio httpx PIL-mock # Ensure test deps are present
         
-    - name: Run Tests
+    - name: Security Check - No OpenCV
+      run: |
+        grep -r "import cv2" backend/ && exit 1 || echo "No OpenCV found - PASS"
+        
+    - name: Run Pytest
       run: |
         cd backend
-        pytest
+        pytest --tb=short -q

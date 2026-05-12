@@ -1,51 +1,52 @@
-# Purpose: Pytest fixtures for the face detection backend.
-
 import pytest
+import asyncio
 import io
 import uuid
-import json
-import sys
-import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from PIL import Image, ImageDraw
-from httpx import AsyncClient
-
-# Ensure the backend directory is in the path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import httpx
+from main import app
 
 @pytest.fixture
-def sample_frame():
-    """Generates a 640x480 white JPEG frame with an oval 'face' representation."""
-    img = Image.new('RGB', (640, 480), color='white')
-    draw = ImageDraw.Draw(img)
-    # Draw an oval that looks like a face for detection tests
-    draw.ellipse([200, 100, 440, 380], outline="black", width=2)
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='JPEG')
-    return img_byte_arr.getvalue()
+def anyio_backend():
+    return "asyncio"
 
 @pytest.fixture
-async def client():
-    """Provides an asynchronous test client for FastAPI."""
-    from main import app
-    # Mock database and redis initialization during lifespan
-    with patch("database.init_db", new_callable=AsyncMock), \
-         patch("main.aioredis.from_url", return_value=AsyncMock()):
-        async with AsyncClient(app=app, base_url="http://test") as ac:
-            yield ac
+async def async_client():
+    """
+    ISSUE 1: Async httpx client for testing FastAPI endpoints.
+    """
+    async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        yield client
 
 @pytest.fixture(autouse=True)
-def mock_redis():
-    """Automatically mocks the redis_client used in the main app."""
-    with patch("main.redis_client", new_callable=AsyncMock) as mock:
-        yield mock
-
-@pytest.fixture(autouse=True)
-def mock_db_pool():
-    """Automatically mocks the database pool to avoid real PostgreSQL connections."""
-    with patch("database.get_db_pool", new_callable=AsyncMock) as mock_get_pool:
-        mock_pool = AsyncMock()
-        mock_conn = AsyncMock()
-        mock_pool.acquire.return_value.__aenter__.return_value = mock_conn
-        mock_get_pool.return_value = mock_pool
+async def mock_db_pool():
+    """
+    ISSUE 1: Mock asyncpg connection pool to avoid real database dependency.
+    """
+    mock_pool = AsyncMock()
+    with patch("main.get_db_pool", return_value=mock_pool):
         yield mock_pool
+
+@pytest.fixture(autouse=True)
+async def mock_redis():
+    """
+    ISSUE 1: Mock aioredis client to avoid real Redis dependency.
+    """
+    mock_r = AsyncMock()
+    with patch("main.redis_client", mock_r):
+        yield mock_r
+
+@pytest.fixture
+def sample_jpeg_bytes():
+    """
+    ISSUE 1: Generate a valid JPEG image with a face-like oval for detection testing.
+    """
+    img = Image.new('RGB', (100, 100), color='white')
+    draw = ImageDraw.Draw(img)
+    # Draw an oval simulating a face
+    draw.ellipse([25, 20, 75, 80], fill='pink', outline='black')
+    
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format='JPEG')
+    return img_bytes.getvalue()

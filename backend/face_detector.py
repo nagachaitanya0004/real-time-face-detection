@@ -26,6 +26,19 @@ try:
 except Exception as e:
     logger.error(f"FAILED to pre-cache MediaPipe model: {e}")
 
+def compute_axis_aligned_bbox(points: list[tuple[int, int]]) -> tuple[int, int, int, int]:
+    """
+    Computes a bounding box (x, y, width, height) from a set of points.
+    Used for coordinate normalization and testing.
+    """
+    if not points:
+        return (0, 0, 0, 0)
+    min_x = min(p[0] for p in points)
+    max_x = max(p[0] for p in points)
+    min_y = min(p[1] for p in points)
+    max_y = max(p[1] for p in points)
+    return (min_x, min_y, max_x - min_x, max_y - min_y)
+
 def process_frame_with_mediapipe(image_bytes: bytes) -> Tuple[bytes, Optional[dict], int, int]:
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
