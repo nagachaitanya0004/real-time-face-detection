@@ -1,10 +1,9 @@
-# Purpose: Multi-stage Dockerfile for the FastAPI backend with non-root security and health checks.
+# Stage 1: Builder - Install dependencies and pre-download models
+FROM python:3.11-slim AS builder
 
-# Stage 1: Builder - Install dependencies
-FROM python:3.11-slim as builder
+WORKDIR /build
 
-WORKDIR /app
-
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -12,36 +11,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Stage 2: Final Runner - Production image
+# Pre-download MediaPipe face detection model at build time to bake into image
+RUN PYTHONPATH=/install/lib/python3.11/site-packages python -c \
+    "import mediapipe as mp; mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.5); print('MediaPipe model cached')"
+
+# Stage 2: Final Runtime Image
 FROM python:3.11-slim
 
-WORKDIR /app
-
-# Install runtime dependencies for MediaPipe and health check
+# Install runtime dependencies (libGL for MediaPipe/OpenCV, curl for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only the installed packages from builder
+# Non-root security
+RUN useradd -u 1001 -m appuser
+WORKDIR /app
+
+# Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
-# ISSUE 4: Pre-download MediaPipe models during build time so they are baked into the image layers.
-RUN python -c "import mediapipe as mp; mp.solutions.face_detection.FaceDetection(min_detection_confidence=0.5)"
-
-# Create a non-root user (UID 1001) for enhanced security
-RUN useradd -m -u 1001 appuser
-USER 1001
-
-# Copy application code with correct ownership
+# Copy application code
 COPY --chown=appuser:appuser . .
 
-# Expose the FastAPI port
+# CRITICAL: Explicitly remove local artifacts if they were accidentally copied
+RUN rm -rf venv __pycache__ .pytest_cache *.egg-info
+
+USER appuser
 EXPOSE 8000
 
-# ISSUE 2: Production health check using the new /health endpoint.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+# Healthcheck targeting the new /health endpoint
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
 
-# Command to launch the application with Uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

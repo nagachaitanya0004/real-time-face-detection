@@ -1,5 +1,3 @@
-# Purpose: Orchestration for the production-grade face detection application suite.
-
 version: '3.8'
 
 services:
@@ -16,32 +14,21 @@ services:
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - internal
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
-      start_period: 10s
       retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: face_detection_redis
-    # Persistence disabled for ephemeral queue as per requirements
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
     networks:
       - internal
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      start_period: 5s
-      retries: 3
 
   backend:
     build:
@@ -58,6 +45,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-securepassword}@db:5432/${POSTGRES_DB:-facedetection}
       - REDIS_URL=redis://redis:6379/0
+      # CORS configuration for development and production
+      - CORS_ORIGINS=http://localhost,http://localhost:80
     depends_on:
       db:
         condition: service_healthy
@@ -68,8 +57,14 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-    restart: unless-stopped
+          # MediaPipe requires significant memory for model inference
+          memory: 768M
+    healthcheck:
+      # Targeting the custom /health endpoint instead of /docs
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:
@@ -87,11 +82,9 @@ services:
     restart: unless-stopped
 
 networks:
-  # Internal network for service-to-service communication
   internal:
     driver: bridge
     internal: true
-  # Separate network for external host access
   frontend_exposed:
     driver: bridge
 

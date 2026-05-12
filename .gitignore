@@ -1,0 +1,19 @@
+# Environments
+venv/
+backend/venv/
+.env
+__pycache__/
+*.pyc
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
+# OS
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
