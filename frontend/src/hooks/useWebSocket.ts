@@ -1,21 +1,11 @@
-/**
- * Purpose: Custom hook for managing WebSocket connections with auto-reconnect and exponential backoff.
- */
-
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ConnectionStatus } from '../types';
 
-/**
- * Manages a WebSocket connection for streaming binary data.
- * @param url The WebSocket endpoint URL.
- * @returns An object containing the current status and the latest received binary frame.
- */
 export const useWebSocket = (url: string) => {
-  const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastFrame, setLastFrame] = useState<Blob | null>(null);
-  const reconnectCount = useRef(0);
-  const maxReconnects = 5;
+  const [readyState, setReadyState] = useState<number>(WebSocket.CONNECTING);
+  const [retryCount, setRetryCount] = useState(0);
   const ws = useRef<WebSocket | null>(null);
+  const backoff = [500, 1000, 2000, 4000, 8000];
 
   const connect = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
@@ -24,33 +14,35 @@ export const useWebSocket = (url: string) => {
     socket.binaryType = 'blob';
 
     socket.onopen = () => {
-      setStatus('open');
-      reconnectCount.current = 0;
+      setReadyState(WebSocket.OPEN);
+      setRetryCount(0);
       console.log('WebSocket Connected');
     };
 
-    socket.onmessage = async (event) => {
+    socket.onmessage = (event) => {
       if (event.data instanceof Blob) {
         setLastFrame(event.data);
       }
     };
 
     socket.onclose = () => {
-      setStatus('closed');
-      if (reconnectCount.current < maxReconnects) {
-        const timeout = Math.pow(2, reconnectCount.current) * 1000;
-        reconnectCount.current += 1;
-        setTimeout(connect, timeout);
-        console.log(`Reconnecting in ${timeout}ms...`);
+      setReadyState(WebSocket.CLOSED);
+      if (retryCount < backoff.length) {
+        const timeout = backoff[retryCount];
+        console.log(`WebSocket closed. Retrying in ${timeout}ms...`);
+        setTimeout(() => {
+          setRetryCount((c) => c + 1);
+          connect();
+        }, timeout);
       }
     };
 
     socket.onerror = () => {
-      setStatus('error');
+      setReadyState(WebSocket.CLOSED);
     };
 
     ws.current = socket;
-  }, [url]);
+  }, [url, retryCount]);
 
   useEffect(() => {
     connect();
@@ -59,5 +51,5 @@ export const useWebSocket = (url: string) => {
     };
   }, [connect]);
 
-  return { status, lastFrame };
+  return { lastFrame, readyState, retryCount };
 };
