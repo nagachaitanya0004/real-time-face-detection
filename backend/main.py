@@ -11,7 +11,7 @@ import redis.asyncio as aioredis
 
 from database import init_db, get_db_pool, close_db
 from face_detector import face_detection_worker
-from schemas import ROIRecordModel
+from schemas import ROIRecord
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,6 +51,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Real-Time Face Detection Video Streaming", lifespan=lifespan)
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 @app.post("/stream/upload")
 async def upload_frame(
     file: UploadFile = File(...),
@@ -87,25 +91,27 @@ async def stream_live(websocket: WebSocket):
     await websocket.accept()
     logger.info("Client connected to WebSocket live stream.")
     
+    pubsub = redis_client.pubsub()
+    await pubsub.subscribe("frame_broadcast")
+    
     try:
-        while True:
-            result = await redis_client.blpop("frame_output_queue", timeout=1.0)
-            if result:
-                _, frame_id_bytes = result
-                frame_id = frame_id_bytes.decode('utf-8')
+        async for message in pubsub.listen():
+            if message['type'] == 'message':
+                frame_id = message['data'].decode('utf-8')
                 
                 annotated_bytes = await redis_client.get(f"annotated_frame:{frame_id}")
                 if annotated_bytes:
                     await websocket.send_bytes(annotated_bytes)
-                    await redis_client.delete(f"annotated_frame:{frame_id}")
     except WebSocketDisconnect:
         logger.info("Client gracefully disconnected from WebSocket live stream.")
     except Exception as e:
         logger.error(f"WebSocket processing error: {e}")
+    finally:
         if not websocket.client_state.DISCONNECTED:
             await websocket.close()
+        await pubsub.unsubscribe("frame_broadcast")
 
-@app.get("/roi/data", response_model=list[ROIRecordModel])
+@app.get("/roi/data", response_model=list[ROIRecord])
 async def get_roi_data(limit: int = Query(10, ge=1, le=1000), offset: int = Query(0, ge=0)):
     try:
         pool = await get_db_pool()

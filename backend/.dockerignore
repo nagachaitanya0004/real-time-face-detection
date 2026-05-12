@@ -1,0 +1,16 @@
+# Purpose: Exclude unnecessary files from the backend Docker build context.
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+ENV/
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+Makefile
+*.db
+*.log
