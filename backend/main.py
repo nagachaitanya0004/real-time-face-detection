@@ -9,6 +9,8 @@ from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect
 import redis.asyncio as aioredis
 
+from fastapi.middleware.cors import CORSMiddleware
+
 from database import init_db, get_db_pool, close_db
 from face_detector import face_detection_worker
 from schemas import ROIRecord
@@ -50,6 +52,15 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown completed.")
 
 app = FastAPI(title="Real-Time Face Detection Video Streaming", lifespan=lifespan)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 async def health_check():
