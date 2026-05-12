@@ -8,3 +8,4 @@ python-multipart
 websockets
 numpy
 python-json-logger
+slowapi

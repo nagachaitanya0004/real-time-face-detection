@@ -17,6 +17,15 @@ from database import get_db_pool
 logger = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=4)
 
+# ISSUE 4: Cache MediaPipe model on module import for faster startup and to ensure model availability.
+try:
+    _warmup_detection = mp.solutions.face_detection.FaceDetection(
+        model_selection=0, min_detection_confidence=0.5
+    )
+    logger.info("MediaPipe FaceDetection model pre-cached successfully.")
+except Exception as e:
+    logger.error(f"FAILED to pre-cache MediaPipe model: {e}")
+
 def process_frame_with_mediapipe(image_bytes: bytes) -> Tuple[bytes, Optional[dict], int, int]:
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -67,14 +76,12 @@ async def face_detection_worker(redis_client: aioredis.Redis) -> None:
     logger.info("Face detection worker started.")
     loop = asyncio.get_running_loop()
     
-    # Initialize MediaPipe once for the life of the worker to save resources
     with mp.solutions.face_detection.FaceDetection(
         model_selection=0, min_detection_confidence=0.5
     ) as face_detection:
         
         while True:
             try:
-                # Fetch a task from the input queue
                 result = await redis_client.blpop("frame_input_queue", timeout=1.0)  # type: ignore
                 if not result:
                     continue
@@ -90,7 +97,6 @@ async def face_detection_worker(redis_client: aioredis.Redis) -> None:
                     logger.warning(f"Raw frame {frame_id} not found in Redis. Dropping.")
                     continue
                     
-                # Process the frame (keeping it in the worker thread to reuse the model instance)
                 def process():
                     try:
                         image = Image.open(io.BytesIO(raw_image_bytes)).convert("RGB")
@@ -134,14 +140,10 @@ async def face_detection_worker(redis_client: aioredis.Redis) -> None:
                     executor, process
                 )
                 
-                # Store annotated frame and publish update for WebSocket clients
                 await redis_client.delete(f"raw_frame:{frame_id}")
                 await redis_client.setex(f"annotated_frame:{frame_id}", 30, annotated_bytes)
-                
-                # BROADCAST: Use Pub/Sub instead of a queue so all connected clients get the frame
                 await redis_client.publish("frame_broadcast", frame_id)
                 
-                # Persistent Storage
                 pool = await get_db_pool()
                 async with pool.acquire() as conn:
                     timestamp = datetime.now(timezone.utc)

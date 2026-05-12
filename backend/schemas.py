@@ -14,7 +14,6 @@ class VideoSession(BaseModel):
     client_ip: Optional[IPvAnyAddress] = None
     total_frames: int = Field(default=0)
     
-    # model_config provides Pydantic v2 support for returning from ORM/SQL records
     model_config = {
         "from_attributes": True
     }
@@ -49,3 +48,10 @@ class ROIRecord(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+# ISSUE 3: New paginated response model for ROI data to avoid bare array returns.
+class ROIPaginatedResponse(BaseModel):
+    items: list[ROIRecord]
+    total: int
+    limit: int
+    offset: int
