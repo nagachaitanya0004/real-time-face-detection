@@ -1,67 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Light Mode */
-    --bg-base: #f8fafc;
-    --bg-card: #ffffff;
-    --bg-card-alt: #f1f5f9;
-    --bg-card-hover: #e2e8f0;
-    --bg-active: #cbd5e1;
-    --bg-subtle: rgba(0, 0, 0, 0.02);
-    --bg-overlay: rgba(255, 255, 255, 0.9);
-    --bg-tooltip: #ffffff;
-    
-    --border-card: rgba(0, 0, 0, 0.08);
-    --border-subtle: rgba(0, 0, 0, 0.05);
-    --border-focus: rgba(0, 0, 0, 0.15);
-    
-    --text-main: #0f172a;
-    --text-secondary: #334155;
-    --text-muted: #64748b;
-    --text-faint: #94a3b8;
-    
-    --shimmer-via: rgba(0, 0, 0, 0.04);
-  }
-
-  .dark {
-    /* Dark Mode */
-    --bg-base: #0a0a0f;
-    --bg-card: #0c0c11;
-    --bg-card-alt: #050508;
-    --bg-card-hover: rgba(255, 255, 255, 0.03);
-    --bg-active: rgba(255, 255, 255, 0.06);
-    --bg-subtle: rgba(255, 255, 255, 0.015);
-    --bg-overlay: rgba(3, 3, 5, 0.85);
-    --bg-tooltip: #1a1a24;
-    
-    --border-card: rgba(255, 255, 255, 0.08);
-    --border-subtle: rgba(255, 255, 255, 0.04);
-    --border-focus: rgba(255, 255, 255, 0.15);
-    
-    --text-main: #ffffff;
-    --text-secondary: #e2e8f0;
-    --text-muted: #cbd5e1;
-    --text-faint: #94a3b8;
-    
-    --shimmer-via: rgba(255, 255, 255, 0.04);
-  }
-
   body {
-    @apply bg-[var(--bg-base)] text-[var(--text-main)] font-sans antialiased transition-colors duration-200;
+    @apply bg-slate-950;
   }
 }
 
-@layer utilities {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
   }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-slate-900;
   }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full hover:bg-slate-600 transition-colors;
+  }
+}
+
+/* Smooth canvas transitions */
+canvas {
+  image-rendering: pixelated;
+  transition: opacity 0.2s ease;
 }
