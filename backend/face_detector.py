@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import redis.asyncio as aioredis
 from PIL import Image, ImageDraw
-import mediapipe as mp
+import mediapipe as mp  # type: ignore
 import numpy as np
 
 from database import get_db_pool
@@ -75,7 +75,7 @@ async def face_detection_worker(redis_client: aioredis.Redis) -> None:
         while True:
             try:
                 # Fetch a task from the input queue
-                result = await redis_client.blpop("frame_input_queue", timeout=1.0)
+                result = await redis_client.blpop("frame_input_queue", timeout=1.0)  # type: ignore
                 if not result:
                     continue
                     

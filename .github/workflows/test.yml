@@ -12,10 +12,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      # Optional: could add real postgres/redis for integration tests here
-      # but we are using mocks for the core test suite.
-      
     steps:
     - uses: actions/checkout@v3
     
