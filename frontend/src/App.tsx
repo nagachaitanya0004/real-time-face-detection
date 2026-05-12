@@ -11,8 +11,9 @@ import { StatsBar } from './components/StatsBar';
 import { StatusBadge } from './components/StatusBadge';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/stream/live';
+// Use relative paths to allow Nginx proxying to handle routing seamlessly
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}/ws/stream/live`;
 
 const App: React.FC = () => {
   const sessionId = useSessionId();

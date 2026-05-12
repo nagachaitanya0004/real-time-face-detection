@@ -8,7 +8,7 @@ interface CameraCaptureProps {
 export const CameraCapture: React.FC<CameraCaptureProps> = ({ videoRef, canvasRef }) => {
   return (
     <div className="hidden">
-      <video ref={videoRef} width={640} height={480} muted />
+      <video ref={videoRef} width={640} height={480} muted playsInline autoPlay />
       <canvas ref={canvasRef} width={640} height={480} />
     </div>
   );

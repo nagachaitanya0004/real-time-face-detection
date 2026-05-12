@@ -9,16 +9,27 @@ export const useCameraCapture = (fps: number, sessionId: string, apiUrl: string)
   const intervalRef = useRef<number | null>(null);
 
   const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError('Your browser does not support camera access or you are not using a secure (HTTPS/localhost) context.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 }
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
+          frameRate: { ideal: 15 }
+        }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        // Ensure video is playing before allowing streaming
+        await videoRef.current.play();
       }
       setError(null);
     } catch (err) {
+      console.error('Camera initialization failed:', err);
       setError('Webcam access denied. Please allow camera permissions.');
       setIsStreaming(false);
     }
